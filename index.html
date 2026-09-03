@@ -185,7 +185,7 @@
       </div>
     </div>
 
-    <footer>Live rate from ExchangeRate-API (open.er-api.com). Spread = (your rate − XE rate) ÷ XE rate.</footer>
+    <footer>Live rate from currencyexchangetool.com (Yahoo Finance). Spread = (your rate − XE rate) ÷ XE rate.</footer>
   </div>
 
   <script>
@@ -315,21 +315,21 @@
       fetchBtn.disabled = true;
       liveNote.textContent = "Fetching live rate…";
       try {
-        const res = await fetch("https://open.er-api.com/v6/latest/USD");
+        const res = await fetch("https://www.currencyexchangetool.com/api/v1/convert?amount=1&from=USD&to=IDR");
         if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
-        if (data.result !== "success") throw new Error("API error: " + (data.result || "unknown"));
-        const mid = data.rates && data.rates.IDR;
+        if (data.success !== true) throw new Error("API error: " + (data.error || "unknown"));
+        const mid = data.rate;
         if (mid == null) throw new Error("No IDR rate in response");
 
         // Set buy and sell both to mid — user can adjust for their own spread.
         xeBuy.value = mid.toFixed(2);
         xeSell.value = mid.toFixed(2);
 
-        const when = data.time_last_update_utc
-          ? new Date(data.time_last_update_utc).toISOString().slice(0, 10)
+        const when = data.updatedAt
+          ? new Date(data.updatedAt).toISOString().slice(0, 10)
           : "today";
-        liveNote.textContent = "Live mid-market (" + when + "): " + mid.toFixed(2) +
+        liveNote.textContent = "Live rate (" + when + "): " + mid.toFixed(2) +
           " IDR. Buy/sell set to mid — adjust as needed.";
         calc();
       } catch (err) {
