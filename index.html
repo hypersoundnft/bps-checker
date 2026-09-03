@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>USD/IDR Spread Calculator</title>
+  <style>
+    :root {
+      --bg: #0b0f1a;
+      --panel: #141a2a;
+      --panel-2: #1c2436;
+      --border: #2a3348;
+      --text: #e7ecf5;
+      --muted: #8a94a8;
+      --accent: #4f8cff;
+      --green: #2ecc71;
+      --red: #ff5d5d;
+      --amber: #f5b942;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(1200px 600px at 20% -10%, #16203a 0%, var(--bg) 55%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 40px 20px;
+      display: flex;
+      justify-content: center;
+    }
+    .wrap { width: 100%; max-width: 680px; }
+    h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
+    h1 span { color: var(--accent); }
+    .sub { color: var(--muted); font-size: 0.9rem; margin-top: 6px; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-top: 20px;
+    }
+    .card h2 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field label { display: block; font-size: 0.82rem; color: var(--muted); margin-bottom: 6px; }
+    .field input {
+      width: 100%;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 1.05rem;
+      font-variant-numeric: tabular-nums;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,140,255,.18); }
+    .field .hint { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
+    .actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 16px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter .15s, transform .05s;
+    }
+    button:hover { filter: brightness(1.08); }
+    button:active { transform: translateY(1px); }
+    button.ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .live-note { margin-top: 12px; font-size: 0.78rem; color: var(--muted); min-height: 1.1em; }
+    .result { display: flex; flex-direction: column; gap: 14px; }
+    .result-item {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+    }
+    .result-item .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .result-item .label { font-size: 0.85rem; color: var(--muted); }
+    .result-item .big {
+      font-size: 1.7rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+      margin-top: 6px;
+    }
+    .result-item .detail { font-size: 0.8rem; color: var(--muted); margin-top: 8px; }
+    .metrics { display: flex; gap: 24px; margin-top: 14px; }
+    .metrics > div { display: flex; flex-direction: column; gap: 2px; }
+    .metric-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+    .metric-value { font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .badge {
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .badge.pos { background: rgba(46,204,113,.15); color: var(--green); }
+    .badge.neg { background: rgba(255,93,93,.15); color: var(--red); }
+    .badge.flat { background: rgba(138,148,168,.15); color: var(--muted); }
+    .num-pos { color: var(--green); }
+    .num-neg { color: var(--red); }
+    footer { color: var(--muted); font-size: 0.75rem; text-align: center; margin-top: 24px; }
+    @media (max-width: 520px) {
+      .row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>USD/IDR <span>Spread Calculator</span></h1>
+    <p class="sub">Compare your share rate against XE buy and sell rates.</p>
+
+    <div class="card">
+      <h2>Your Rate</h2>
+      <div class="field">
+        <label for="yourRate">Your share rate (IDR per USD)</label>
+        <input id="yourRate" type="number" step="any" inputmode="decimal" placeholder="e.g. 16450" />
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>XE Rates</h2>
+      <div class="row">
+        <div class="field">
+          <label for="xeBuy">XE Buy (IDR per USD)</label>
+          <input id="xeBuy" type="number" step="any" inputmode="decimal" placeholder="e.g. 16390" />
+          <div class="hint">Rate XE buys USD from you</div>
+        </div>
+        <div class="field">
+          <label for="xeSell">XE Sell (IDR per USD)</label>
+          <input id="xeSell" type="number" step="any" inputmode="decimal" placeholder="e.g. 16410" />
+          <div class="hint">Rate XE sells USD to you</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="fetchBtn">Fetch live mid-market</button>
+        <button id="clearBtn" class="ghost">Clear</button>
+      </div>
+      <p id="liveNote" class="live-note"></p>
+    </div>
+
+    <div class="card">
+      <h2>Spread Results</h2>
+      <div class="result">
+        <div class="result-item">
+          <div class="top">
+            <span class="label">Spread vs XE Buy</span>
+            <span id="buyBadge" class="badge flat">—</span>
+          </div>
+          <div id="buySpread" class="big">—</div>
+          <div class="metrics">
+            <div><span class="metric-label">Points</span><span id="buyPoints" class="metric-value">—</span></div>
+            <div><span class="metric-label">BPS</span><span id="buyBps" class="metric-value">—</span></div>
+          </div>
+          <div id="buyDetail" class="detail">Enter both rates to calculate.</div>
+        </div>
+        <div class="result-item">
+          <div class="top">
+            <span class="label">Spread vs XE Sell</span>
+            <span id="sellBadge" class="badge flat">—</span>
+          </div>
+          <div id="sellSpread" class="big">—</div>
+          <div class="metrics">
+            <div><span class="metric-label">Points</span><span id="sellPoints" class="metric-value">—</span></div>
+            <div><span class="metric-label">BPS</span><span id="sellBps" class="metric-value">—</span></div>
+          </div>
+          <div id="sellDetail" class="detail">Enter both rates to calculate.</div>
+        </div>
+      </div>
+    </div>
+
+    <footer>Live rate from ExchangeRate-API (open.er-api.com). Spread = (your rate − XE rate) ÷ XE rate.</footer>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const yourRate = $("yourRate");
+    const xeBuy = $("xeBuy");
+    const xeSell = $("xeSell");
+    const fetchBtn = $("fetchBtn");
+    const clearBtn = $("clearBtn");
+    const liveNote = $("liveNote");
+
+    function num(v) {
+      const n = parseFloat(v);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function fmtPct(p) {
+      const sign = p > 0 ? "+" : "";
+      return sign + p.toFixed(4) + "%";
+    }
+
+    function fmtIdr(p) {
+      const sign = p > 0 ? "+" : "";
+      return sign + p.toFixed(2) + " IDR";
+    }
+
+    function fmtSigned(v, digits) {
+      const sign = v > 0 ? "+" : "";
+      return sign + v.toFixed(digits);
+    }
+
+    function colorize(el, value) {
+      el.className = "metric-value " + (value > 0 ? "num-pos" : value < 0 ? "num-neg" : "");
+    }
+
+    function setSpread(prefix, spreadPct, spreadIdr) {
+      const big = $(prefix + "Spread");
+      const badge = $(prefix + "Badge");
+      const detail = $(prefix + "Detail");
+      const points = $(prefix + "Points");
+      const bps = $(prefix + "Bps");
+
+      // Points = 1 IDR, BPS = 0.01% (basis points).
+      const spreadBps = spreadPct * 100;
+
+      big.textContent = fmtPct(spreadPct);
+      big.className = "big " + (spreadPct > 0 ? "num-pos" : spreadPct < 0 ? "num-neg" : "");
+
+      points.textContent = fmtSigned(spreadIdr, 2) + " pt";
+      bps.textContent = fmtSigned(spreadBps, 2) + " bps";
+      colorize(points, spreadIdr);
+      colorize(bps, spreadBps);
+
+      badge.textContent = spreadPct > 0 ? "Above XE" : spreadPct < 0 ? "Below XE" : "At parity";
+      badge.className = "badge " + (spreadPct > 0 ? "pos" : spreadPct < 0 ? "neg" : "flat");
+
+      detail.textContent =
+        "Absolute difference: " + fmtIdr(spreadIdr) +
+        (spreadPct > 0 ? " — your rate is higher than XE." :
+         spreadPct < 0 ? " — your rate is lower than XE." :
+         " — your rate matches XE.");
+    }
+
+    function calc() {
+      const yr = num(yourRate.value);
+
+      const bb = num(xeBuy.value);
+      if (bb != null) {
+        if (yr == null) {
+          $("buySpread").textContent = "—";
+          $("buySpread").className = "big";
+          $("buyBadge").textContent = "—";
+          $("buyBadge").className = "badge flat";
+          $("buyPoints").textContent = "—";
+          $("buyPoints").className = "metric-value";
+          $("buyBps").textContent = "—";
+          $("buyBps").className = "metric-value";
+          $("buyDetail").textContent = "Enter your rate to calculate.";
+        } else {
+          const idr = yr - bb;
+          setSpread("buy", (idr / bb) * 100, idr);
+        }
+      } else {
+        $("buySpread").textContent = "—";
+        $("buySpread").className = "big";
+        $("buyBadge").textContent = "—";
+        $("buyBadge").className = "badge flat";
+        $("buyPoints").textContent = "—";
+        $("buyPoints").className = "metric-value";
+        $("buyBps").textContent = "—";
+        $("buyBps").className = "metric-value";
+        $("buyDetail").textContent = "Enter the XE buy rate to calculate.";
+      }
+
+      const bs = num(xeSell.value);
+      if (bs != null) {
+        if (yr == null) {
+          $("sellSpread").textContent = "—";
+          $("sellSpread").className = "big";
+          $("sellBadge").textContent = "—";
+          $("sellBadge").className = "badge flat";
+          $("sellPoints").textContent = "—";
+          $("sellPoints").className = "metric-value";
+          $("sellBps").textContent = "—";
+          $("sellBps").className = "metric-value";
+          $("sellDetail").textContent = "Enter your rate to calculate.";
+        } else {
+          const idr = yr - bs;
+          setSpread("sell", (idr / bs) * 100, idr);
+        }
+      } else {
+        $("sellSpread").textContent = "—";
+        $("sellSpread").className = "big";
+        $("sellBadge").textContent = "—";
+        $("sellBadge").className = "badge flat";
+        $("sellPoints").textContent = "—";
+        $("sellPoints").className = "metric-value";
+        $("sellBps").textContent = "—";
+        $("sellBps").className = "metric-value";
+        $("sellDetail").textContent = "Enter the XE sell rate to calculate.";
+      }
+    }
+
+    [yourRate, xeBuy, xeSell].forEach(el => el.addEventListener("input", calc));
+
+    async function fetchLive() {
+      fetchBtn.disabled = true;
+      liveNote.textContent = "Fetching live rate…";
+      try {
+        const res = await fetch("https://open.er-api.com/v6/latest/USD");
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        if (data.result !== "success") throw new Error("API error: " + (data.result || "unknown"));
+        const mid = data.rates && data.rates.IDR;
+        if (mid == null) throw new Error("No IDR rate in response");
+
+        // Set buy and sell both to mid — user can adjust for their own spread.
+        xeBuy.value = mid.toFixed(2);
+        xeSell.value = mid.toFixed(2);
+
+        const when = data.time_last_update_utc
+          ? new Date(data.time_last_update_utc).toISOString().slice(0, 10)
+          : "today";
+        liveNote.textContent = "Live mid-market (" + when + "): " + mid.toFixed(2) +
+          " IDR. Buy/sell set to mid — adjust as needed.";
+        calc();
+      } catch (err) {
+        liveNote.textContent = "Failed to fetch live rate: " + err.message;
+      } finally {
+        fetchBtn.disabled = false;
+      }
+    }
+
+    fetchBtn.addEventListener("click", fetchLive);
+    clearBtn.addEventListener("click", () => {
+      yourRate.value = "";
+      xeBuy.value = "";
+      xeSell.value = "";
+      liveNote.textContent = "";
+      calc();
+    });
+
+    calc();
+  </script>
+</body>
+</html>
