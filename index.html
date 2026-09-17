@@ -221,7 +221,7 @@
       <div class="field">
         <label for="bpsAmount">Bips to add</label>
         <input id="bpsAmount" type="number" step="any" inputmode="decimal" placeholder="e.g. 1" />
-        <div class="hint">1 bips = 0.1% of your base rate</div>
+        <div class="hint">1 bips = 0.01% of your base rate</div>
       </div>
       <div class="actions">
         <button data-add-bips="1" class="ghost">+1 bips</button>
@@ -248,7 +248,7 @@
       </div>
     </div>
 
-    <footer>BPS adder: total = base rate + (base rate × bips ÷ 1000).</footer>
+    <footer>BPS adder: total = base rate + (base rate × bips ÷ 10000).</footer>
     </section>
   </div>
 
@@ -436,10 +436,6 @@
     const bpsAmount = $("bpsAmount");
     const bpsClearBtn = $("bpsClearBtn");
 
-    function fmtNum(v) {
-      return parseFloat(v.toFixed(2)).toString();
-    }
-
     function bpsCalc() {
       const rate = num(baseRate.value);
       const bps = num(bpsAmount.value);
@@ -454,12 +450,12 @@
         return;
       }
 
-      const added = rate * bps / 1000;
+      const added = rate * bps / 10000;
       const total = rate + added;
 
       addedEl.textContent = (added > 0 ? "+" : "") + added.toFixed(2) + " IDR";
       addedEl.className = "big " + (added > 0 ? "num-pos" : added < 0 ? "num-neg" : "");
-      totalEl.textContent = fmtNum(total);
+      totalEl.textContent = total.toFixed(2);
       totalEl.className = "big";
     }
 
