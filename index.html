@@ -129,6 +129,19 @@
     }
     .tab-btn:hover { filter: brightness(1.08); color: var(--text); }
     .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .wall-list { margin-top: 8px; }
+    .wall-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .wall-row:last-child { border-bottom: none; }
+    .wall-price { font-weight: 600; }
+    .wall-amount { color: var(--muted); }
     @media (max-width: 520px) {
       .row { grid-template-columns: 1fr; }
     }
@@ -142,6 +155,7 @@
     <nav class="tabs">
       <button class="tab-btn active" data-page="spread">Spread Calculator</button>
       <button class="tab-btn" data-page="bps">BPS Adder</button>
+      <button class="tab-btn" data-page="indodax">Indodax Liquidity</button>
     </nav>
 
     <section id="page-spread">
@@ -255,6 +269,46 @@
     </div>
 
     <footer>BPS adder: total = base rate + (base rate × bips ÷ 10000).</footer>
+    </section>
+
+    <section id="page-indodax" hidden>
+    <div class="card">
+      <h2>Indodax USDT/IDR</h2>
+      <div class="result">
+        <div class="result-item">
+          <div class="top">
+            <span class="label">Ticker</span>
+            <span id="indodaxLast" class="badge flat">—</span>
+          </div>
+          <div class="metrics">
+            <div><span class="metric-label">Buy</span><span id="indodaxBuy" class="metric-value">—</span></div>
+            <div><span class="metric-label">Sell</span><span id="indodaxSell" class="metric-value">—</span></div>
+            <div><span class="metric-label">24h High</span><span id="indodaxHigh" class="metric-value">—</span></div>
+            <div><span class="metric-label">24h Low</span><span id="indodaxLow" class="metric-value">—</span></div>
+          </div>
+          <div class="actions">
+            <button id="indodaxRefreshBtn">Refresh</button>
+          </div>
+          <p id="indodaxNote" class="live-note"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Thickest Liquidity</h2>
+      <div class="result">
+        <div class="result-item">
+          <div class="top"><span class="label">Biggest Buy Walls (bids)</span></div>
+          <div id="indodaxBuyWalls" class="wall-list">—</div>
+        </div>
+        <div class="result-item">
+          <div class="top"><span class="label">Biggest Sell Walls (asks)</span></div>
+          <div id="indodaxSellWalls" class="wall-list">—</div>
+        </div>
+      </div>
+    </div>
+
+    <footer>Indodax USDT/IDR order book. Live via public API.</footer>
     </section>
   </div>
 
@@ -423,16 +477,27 @@
     // --- Page tabs ---
     const spreadPage = $("page-spread");
     const bpsPage = $("page-bps");
+    const indodaxPage = $("page-indodax");
     const tabBtns = document.querySelectorAll(".tab-btn");
     const sub = document.querySelector(".sub");
+    let indodaxLoaded = false;
+
+    const pageSubtitles = {
+      spread: "Compare your share rate against XE buy and sell rates.",
+      bps: "Add bips to a base rate and see the new total.",
+      indodax: "Indodax USDT/IDR order book and liquidity walls.",
+    };
 
     function showPage(page) {
       spreadPage.hidden = page !== "spread";
       bpsPage.hidden = page !== "bps";
-      sub.textContent = page === "spread"
-        ? "Compare your share rate against XE buy and sell rates."
-        : "Add bips to a base rate and see the new total.";
+      indodaxPage.hidden = page !== "indodax";
+      sub.textContent = pageSubtitles[page] || "";
       tabBtns.forEach(b => b.classList.toggle("active", b.dataset.page === page));
+      if (page === "indodax" && !indodaxLoaded) {
+        indodaxLoaded = true;
+        loadIndodax();
+      }
     }
 
     tabBtns.forEach(b => b.addEventListener("click", () => showPage(b.dataset.page)));
@@ -482,6 +547,56 @@
     });
 
     bpsCalc();
+
+    // --- Indodax order book ---
+    const indodaxRefreshBtn = $("indodaxRefreshBtn");
+
+    function fmtIdrPrice(v) {
+      const n = num(v);
+      return n == null ? "—" : n.toLocaleString("en-US");
+    }
+
+    function renderWalls(levels, container) {
+      if (!Array.isArray(levels) || levels.length === 0) {
+        container.textContent = "—";
+        return;
+      }
+      const walls = levels
+        .map(([price, amount]) => ({ price: parseFloat(price), amount: parseFloat(amount) }))
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 6);
+      container.innerHTML = walls.map(w =>
+        `<div class="wall-row"><span class="wall-price">${fmtIdrPrice(w.price)}</span><span class="wall-amount">${w.amount.toLocaleString("en-US", { maximumFractionDigits: 0 })} USDT</span></div>`
+      ).join("");
+    }
+
+    function renderIndodax(data) {
+      const t = data.ticker || {};
+      $("indodaxBuy").textContent = fmtIdrPrice(t.buy);
+      $("indodaxSell").textContent = fmtIdrPrice(t.sell);
+      $("indodaxHigh").textContent = fmtIdrPrice(t.high);
+      $("indodaxLow").textContent = fmtIdrPrice(t.low);
+      $("indodaxLast").textContent = fmtIdrPrice(t.last);
+      renderWalls(data.buy, $("indodaxBuyWalls"));
+      renderWalls(data.sell, $("indodaxSellWalls"));
+    }
+
+    async function loadIndodax() {
+      const note = $("indodaxNote");
+      note.textContent = "Loading Indodax order book…";
+      try {
+        const res = await fetch("/api/indodax");
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        renderIndodax(data);
+        note.textContent = "Updated " + new Date().toLocaleTimeString();
+      } catch (err) {
+        note.textContent = "Failed to load Indodax: " + (err instanceof Error ? err.message : "unknown");
+      }
+    }
+
+    indodaxRefreshBtn.addEventListener("click", loadIndodax);
   </script>
 </body>
 </html>
