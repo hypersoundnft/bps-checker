@@ -228,6 +228,10 @@
         <label for="baseRate">Base rate (IDR per USD)</label>
         <input id="baseRate" type="number" step="any" inputmode="decimal" value="17670.34" placeholder="e.g. 17670.34" />
       </div>
+      <div class="actions">
+        <button id="textileRefreshBtn">Refresh Textile rate</button>
+      </div>
+      <p id="textileNote" class="live-note"></p>
     </div>
 
     <div class="card">
@@ -506,6 +510,7 @@
     const baseRate = $("baseRate");
     const bpsAmount = $("bpsAmount");
     const bpsClearBtn = $("bpsClearBtn");
+    const textileRefreshBtn = $("textileRefreshBtn");
 
     function bpsCalc() {
       const rate = num(baseRate.value);
@@ -545,6 +550,31 @@
       bpsAmount.value = "";
       bpsCalc();
     });
+
+    async function refreshTextileRate() {
+      const note = $("textileNote");
+      textileRefreshBtn.disabled = true;
+      note.textContent = "Fetching Textile rate…";
+      try {
+        const res = await fetch("/api/textile");
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        const idr = Array.isArray(data) ? data.find(t => t.ticker_id === "USDT_IDR") : null;
+        if (!idr) throw new Error("USDT_IDR pair not found");
+        const rate = parseFloat(idr.ask);
+        if (!Number.isFinite(rate) || rate <= 0) throw new Error("No ask rate");
+        baseRate.value = rate.toFixed(2);
+        note.textContent = "Textile ask " + rate.toLocaleString("en-US", { minimumFractionDigits: 2 }) + " — updated " + new Date().toLocaleTimeString();
+        bpsCalc();
+      } catch (err) {
+        note.textContent = "Failed to refresh Textile rate: " + (err instanceof Error ? err.message : "unknown");
+      } finally {
+        textileRefreshBtn.disabled = false;
+      }
+    }
+
+    textileRefreshBtn.addEventListener("click", refreshTextileRate);
 
     bpsCalc();
 
