@@ -281,15 +281,9 @@
       <h2>Indodax USDT/IDR</h2>
       <div class="result">
         <div class="result-item">
-          <div class="top">
-            <span class="label">Ticker</span>
-            <span id="indodaxLast" class="badge flat">—</span>
-          </div>
           <div class="metrics">
             <div><span class="metric-label">Buy</span><span id="indodaxBuy" class="metric-value">—</span></div>
             <div><span class="metric-label">Sell</span><span id="indodaxSell" class="metric-value">—</span></div>
-            <div><span class="metric-label">24h High</span><span id="indodaxHigh" class="metric-value">—</span></div>
-            <div><span class="metric-label">24h Low</span><span id="indodaxLow" class="metric-value">—</span></div>
           </div>
           <div class="actions">
             <button id="indodaxRefreshBtn">Refresh</button>
@@ -321,17 +315,9 @@
       <h2>Reku USDT/IDR</h2>
       <div class="result">
         <div class="result-item">
-          <div class="top">
-            <span class="label">Ticker</span>
-            <span id="rekuLast" class="badge flat">—</span>
-          </div>
           <div class="metrics">
             <div><span class="metric-label">Buy</span><span id="rekuBuy" class="metric-value">—</span></div>
             <div><span class="metric-label">Sell</span><span id="rekuSell" class="metric-value">—</span></div>
-            <div><span class="metric-label">24h High</span><span id="rekuHigh" class="metric-value">—</span></div>
-            <div><span class="metric-label">24h Low</span><span id="rekuLow" class="metric-value">—</span></div>
-            <div><span class="metric-label">24h Volume</span><span id="rekuVol" class="metric-value">—</span></div>
-            <div><span class="metric-label">Change</span><span id="rekuChange" class="metric-value">—</span></div>
           </div>
           <div class="actions">
             <button id="rekuRefreshBtn">Refresh</button>
@@ -655,9 +641,6 @@
       const t = data.ticker || {};
       $("indodaxBuy").textContent = fmtIdrPrice(t.buy);
       $("indodaxSell").textContent = fmtIdrPrice(t.sell);
-      $("indodaxHigh").textContent = fmtIdrPrice(t.high);
-      $("indodaxLow").textContent = fmtIdrPrice(t.low);
-      $("indodaxLast").textContent = fmtIdrPrice(t.last);
       renderWalls(data.buy, $("indodaxBuyWalls"));
       renderWalls(data.sell, $("indodaxSellWalls"));
     }
@@ -685,16 +668,6 @@
     function renderReku(t) {
       $("rekuBuy").textContent = fmtIdrPrice(t.buy);
       $("rekuSell").textContent = fmtIdrPrice(t.sell);
-      $("rekuHigh").textContent = fmtIdrPrice(t.high);
-      $("rekuLow").textContent = fmtIdrPrice(t.low);
-      $("rekuLast").textContent = fmtIdrPrice(t.last);
-      $("rekuVol").textContent = t.vol != null
-        ? parseFloat(t.vol).toLocaleString("en-US", { maximumFractionDigits: 0 })
-        : "—";
-      const change = num(t.change);
-      const changeEl = $("rekuChange");
-      changeEl.textContent = change == null ? "—" : (change > 0 ? "+" : "") + change.toFixed(2) + "%";
-      changeEl.className = "metric-value " + (change > 0 ? "num-pos" : change < 0 ? "num-neg" : "");
     }
 
     async function loadReku() {
