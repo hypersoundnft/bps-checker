@@ -99,7 +99,7 @@
       margin-top: 6px;
     }
     .result-item .detail { font-size: 0.8rem; color: var(--muted); margin-top: 8px; }
-    .metrics { display: flex; gap: 24px; margin-top: 14px; }
+    .metrics { display: flex; flex-wrap: wrap; gap: 24px; margin-top: 14px; }
     .metrics > div { display: flex; flex-direction: column; gap: 2px; }
     .metric-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
     .metric-value { font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -156,6 +156,7 @@
       <button class="tab-btn active" data-page="spread">Spread Calculator</button>
       <button class="tab-btn" data-page="bps">BPS Adder</button>
       <button class="tab-btn" data-page="indodax">Indodax Liquidity</button>
+      <button class="tab-btn" data-page="reku">Reku Price</button>
     </nav>
 
     <section id="page-spread">
@@ -313,6 +314,34 @@
     </div>
 
     <footer>Indodax USDT/IDR order book. Live via public API.</footer>
+    </section>
+
+    <section id="page-reku" hidden>
+    <div class="card">
+      <h2>Reku USDT/IDR</h2>
+      <div class="result">
+        <div class="result-item">
+          <div class="top">
+            <span class="label">Ticker</span>
+            <span id="rekuLast" class="badge flat">—</span>
+          </div>
+          <div class="metrics">
+            <div><span class="metric-label">Buy</span><span id="rekuBuy" class="metric-value">—</span></div>
+            <div><span class="metric-label">Sell</span><span id="rekuSell" class="metric-value">—</span></div>
+            <div><span class="metric-label">24h High</span><span id="rekuHigh" class="metric-value">—</span></div>
+            <div><span class="metric-label">24h Low</span><span id="rekuLow" class="metric-value">—</span></div>
+            <div><span class="metric-label">24h Volume</span><span id="rekuVol" class="metric-value">—</span></div>
+            <div><span class="metric-label">Change</span><span id="rekuChange" class="metric-value">—</span></div>
+          </div>
+          <div class="actions">
+            <button id="rekuRefreshBtn">Refresh</button>
+          </div>
+          <p id="rekuNote" class="live-note"></p>
+        </div>
+      </div>
+    </div>
+
+    <footer>Reku USDT/IDR ticker. Live via public API.</footer>
     </section>
   </div>
 
@@ -482,25 +511,33 @@
     const spreadPage = $("page-spread");
     const bpsPage = $("page-bps");
     const indodaxPage = $("page-indodax");
+    const rekuPage = $("page-reku");
     const tabBtns = document.querySelectorAll(".tab-btn");
     const sub = document.querySelector(".sub");
     let indodaxLoaded = false;
+    let rekuLoaded = false;
 
     const pageSubtitles = {
       spread: "Compare your share rate against XE buy and sell rates.",
       bps: "Add bips to a base rate and see the new total.",
       indodax: "Indodax USDT/IDR order book and liquidity walls.",
+      reku: "Reku USDT/IDR ticker.",
     };
 
     function showPage(page) {
       spreadPage.hidden = page !== "spread";
       bpsPage.hidden = page !== "bps";
       indodaxPage.hidden = page !== "indodax";
+      rekuPage.hidden = page !== "reku";
       sub.textContent = pageSubtitles[page] || "";
       tabBtns.forEach(b => b.classList.toggle("active", b.dataset.page === page));
       if (page === "indodax" && !indodaxLoaded) {
         indodaxLoaded = true;
         loadIndodax();
+      }
+      if (page === "reku" && !rekuLoaded) {
+        rekuLoaded = true;
+        loadReku();
       }
     }
 
@@ -627,6 +664,46 @@
     }
 
     indodaxRefreshBtn.addEventListener("click", loadIndodax);
+
+    // --- Reku ticker ---
+    const rekuRefreshBtn = $("rekuRefreshBtn");
+
+    function renderReku(t) {
+      $("rekuBuy").textContent = fmtIdrPrice(t.buy);
+      $("rekuSell").textContent = fmtIdrPrice(t.sell);
+      $("rekuHigh").textContent = fmtIdrPrice(t.high);
+      $("rekuLow").textContent = fmtIdrPrice(t.low);
+      $("rekuLast").textContent = fmtIdrPrice(t.last);
+      $("rekuVol").textContent = t.vol != null
+        ? parseFloat(t.vol).toLocaleString("en-US", { maximumFractionDigits: 0 })
+        : "—";
+      const change = num(t.change);
+      const changeEl = $("rekuChange");
+      changeEl.textContent = change == null ? "—" : (change > 0 ? "+" : "") + change.toFixed(2) + "%";
+      changeEl.className = "metric-value " + (change > 0 ? "num-pos" : change < 0 ? "num-neg" : "");
+    }
+
+    async function loadReku() {
+      const note = $("rekuNote");
+      rekuRefreshBtn.disabled = true;
+      note.textContent = "Loading Reku price…";
+      try {
+        const res = await fetch("https://api.reku.id/v2/ticker/usdtidr");
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        const tickers = Array.isArray(data.ticker) ? data.ticker : [];
+        const usdt = tickers.find(t => t.symbol === "USDT_IDR");
+        if (!usdt) throw new Error("USDT_IDR pair not found");
+        renderReku(usdt);
+        note.textContent = "Updated " + new Date().toLocaleTimeString();
+      } catch (err) {
+        note.textContent = "Failed to load Reku: " + (err instanceof Error ? err.message : "unknown");
+      } finally {
+        rekuRefreshBtn.disabled = false;
+      }
+    }
+
+    rekuRefreshBtn.addEventListener("click", loadReku);
   </script>
 </body>
 </html>
